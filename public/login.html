@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log in — NEXA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-page">
+  <div class="landing-nav"><div class="wrap row"><a href="index.html" class="brand"><span class="mark">N</span>NEXA</a></div></div>
+  <div class="auth-wrap">
+    <form class="card auth-card" id="login-form" novalidate>
+      <h1>Welcome back</h1>
+      <div class="sub">Log in to continue where you left off.</div>
+      <div class="auth-error" id="login-error"></div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="login-btn">Log in</button>
+      <div class="auth-foot">New to NEXA? <a href="signup.html">Create an account</a></div>
+    </form>
+  </div>
+</div>
+<script>
+const form = document.getElementById('login-form');
+const errorBox = document.getElementById('login-error');
+const btn = document.getElementById('login-btn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorBox.classList.remove('show');
+  btn.disabled = true; btn.textContent = 'Logging in\u2026';
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not log in.');
+    location.href = 'index.html';
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Log in';
+  }
+});
+
+// If already logged in, skip straight to the app.
+fetch('/api/auth/me').then(r=>r.json()).then(({user})=>{ if(user) location.href='index.html'; });
+</script>
+</body>
+</html>
