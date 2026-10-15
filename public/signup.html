@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign up — NEXA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="auth-page">
+  <div class="landing-nav"><div class="wrap row"><a href="index.html" class="brand"><span class="mark">N</span>NEXA</a></div></div>
+  <div class="auth-wrap">
+    <form class="card auth-card" id="signup-form" novalidate>
+      <h1>Create your account</h1>
+      <div class="sub">Your academic companion for Grades 9\u201312.</div>
+      <div class="auth-error" id="signup-error"></div>
+      <div class="field">
+        <label for="name">Full name</label>
+        <input type="text" id="name" name="name" required autocomplete="name" placeholder="Selam Tesfaye" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters" />
+      </div>
+      <div class="field">
+        <label for="grade">Grade</label>
+        <select id="grade" name="grade">
+          <option value="9">Grade 9</option>
+          <option value="10">Grade 10</option>
+          <option value="11" selected>Grade 11</option>
+          <option value="12">Grade 12</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="signup-btn">Create account</button>
+      <div class="auth-foot">Already have an account? <a href="login.html">Log in</a></div>
+    </form>
+  </div>
+</div>
+<script>
+const form = document.getElementById('signup-form');
+const errorBox = document.getElementById('signup-error');
+const btn = document.getElementById('signup-btn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorBox.classList.remove('show');
+  btn.disabled = true; btn.textContent = 'Creating account\u2026';
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+        grade: document.getElementById('grade').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not create account.');
+    location.href = 'index.html';
+  } catch (err) {
+    errorBox.textContent = err.message;
+    errorBox.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Create account';
+  }
+});
+
+fetch('/api/auth/me').then(r=>r.json()).then(({user})=>{ if(user) location.href='index.html'; });
+</script>
+</body>
+</html>
