@@ -339,6 +339,7 @@ table.score-table tr:last-child td{ border-bottom:none; }
 .auth-foot a{ color:var(--indigo); font-weight:600; }
 .side-link.logout{ color:var(--red); }
 .side-link.logout:hover{ background:var(--red-tint); color:var(--red); }
+<<<<<<< HEAD
 
 /* ============ CURRICULUM ADDITIONS ============ */
 .unit-head{ display:flex; align-items:center; gap:10px; margin:30px 0 14px; }
@@ -350,3 +351,5 @@ table.score-table tr:last-child td{ border-bottom:none; }
 @media(min-width:860px){ .coach-topic{ padding:10px 34px; } }
 .toc-item{ cursor:pointer; }
 .toc-item:hover{ color:var(--indigo-deep); border-color:var(--indigo); }
+=======
+>>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
