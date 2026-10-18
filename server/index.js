@@ -17,6 +17,15 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
 
+// Netlify rewrites /api/* to this function and strips the /api prefix.
+// Restore it before Express route matching; direct /api requests remain unchanged.
+app.use((req, res, next) => {
+  if (req.path !== '/api' && !req.path.startsWith('/api/')) {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
+
 app.use(session({
   store: new pgSession({ pool, createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('SESSION_SECRET must be set in production.'); })() : 'dev-secret-change-me'),
