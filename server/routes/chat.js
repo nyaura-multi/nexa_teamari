@@ -8,12 +8,7 @@ const router = express.Router();
 router.get('/chat', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-<<<<<<< HEAD
       'SELECT id, role, text, created_at FROM chat_messages WHERE user_id=$1 ORDER BY created_at ASC, id ASC', [req.session.userId]
-=======
-      `SELECT id, role, text, created_at FROM chat_messages WHERE user_id=$1 ORDER BY created_at ASC`,
-      [req.session.userId]
->>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
     );
     res.json({ messages: rows });
   } catch (err) {
@@ -23,7 +18,6 @@ router.get('/chat', requireAuth, async (req, res) => {
 });
 
 router.post('/chat', requireAuth, async (req, res) => {
-<<<<<<< HEAD
   const text = (req.body.text || '').trim().slice(0, 2000);
   if (!text) return res.status(400).json({ error: 'Message text is required.' });
   const userId = req.session.userId;
@@ -52,16 +46,6 @@ router.post('/chat', requireAuth, async (req, res) => {
     const reply = await generateReply({ prompt: text, topic, questions, grade: u[0].grade, history: hist.reverse() });
     const { rows } = await pool.query(
       "INSERT INTO chat_messages (user_id, role, text) VALUES ($1,'bot',$2) RETURNING id, role, text, created_at", [userId, reply]
-=======
-  const { text } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Message text is required.' });
-  try {
-    await pool.query(`INSERT INTO chat_messages (user_id, role, text) VALUES ($1,'user',$2)`, [req.session.userId, text.trim()]);
-    const reply = generateReply(text);
-    const { rows } = await pool.query(
-      `INSERT INTO chat_messages (user_id, role, text) VALUES ($1,'bot',$2) RETURNING id, role, text, created_at`,
-      [req.session.userId, reply]
->>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
     );
     res.json({ reply: rows[0] });
   } catch (err) {
