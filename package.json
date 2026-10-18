@@ -1,7 +1,7 @@
 {
   "name": "nexa-fullstack",
   "version": "1.0.0",
-  "description": "NEXA \u2014 academic companion for Ethiopian high-school students (Grades 9\u201312). Full-stack: Express + PostgreSQL.",
+  "description": "NEXA — academic companion for Ethiopian high-school students (Grades 9–12). Full-stack: Express + PostgreSQL.",
   "main": "server/index.js",
   "type": "commonjs",
   "scripts": {
@@ -15,7 +15,8 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
-    "pg": "^8.11.5"
+    "pg": "^8.11.5",
+    "serverless-http": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
