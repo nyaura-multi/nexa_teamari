@@ -90,6 +90,78 @@ async function seed() {
       }
     }
 
+
+    // 3) Ensure every textbook topic has a lesson and practice questions.
+    // Existing authored lessons above always take priority; this fills only uncovered topics.
+    const missing = await client.query(`
+      SELECT t.id, t.subject_id, t.grade, t.unit_no, t.unit_title, t.section_no,
+             t.name, t.description
+      FROM topics t
+      LEFT JOIN lessons l ON l.topic_id = t.id
+      WHERE l.topic_id IS NULL
+      ORDER BY t.subject_id, t.grade, t.unit_no, t.sort_order
+    `);
+    for (const t of missing.rows) {
+      const subjectName = ({ math: 'Mathematics', physics: 'Physics', chemistry: 'Chemistry', biology: 'Biology' })[t.subject_id] || t.subject_id;
+      const appliedExample = ({
+        math: `If a quantity x is represented by a rule, first identify the known values, substitute carefully, and check that the result satisfies the original rule. For example, if y = 2x + 3 and x = 4, then y = 2(4) + 3 = 11.`,
+        physics: `Start by listing the known quantities with units, identify the physical principle that connects them, rearrange the equation before substituting, and check units. For example, at constant speed, distance = speed × time; a cyclist moving at 5 m/s for 8 s travels 40 m.`,
+        chemistry: `Connect the observable change to particles and symbols. Record the substances involved, represent the change with a word or chemical equation where appropriate, and check conservation of atoms. For example, hydrogen and oxygen combine to form water: 2H₂ + O₂ → 2H₂O.`,
+        biology: `Move from structure to function: identify the part, describe what it does, and explain how that function supports the organism. For example, root hairs increase a plant root's surface area, helping it absorb water and mineral ions from soil.`
+      })[t.subject_id] || `Define the key terms, identify the main principle, and connect it to an observable example.`;
+      const sections = [
+        { heading: `Core idea: ${t.name}`, body: [
+          `${t.description}`,
+          `This section belongs to Grade ${t.grade} ${subjectName}, Unit ${t.unit_no}: “${t.unit_title}”. Begin by writing down the important vocabulary in ${t.name}; define each term in your own words and note any symbols, units, diagrams, processes, or rules used in the topic.`,
+          `Build understanding in three passes: (1) state the main idea and its purpose, (2) explain how the parts or steps connect, and (3) apply the idea to a new example without looking at your notes. If a step is unclear, return to the definition or prerequisite concept rather than memorising the final answer.`
+        ]},
+        { heading: 'Worked approach and common errors', body: [
+          appliedExample,
+          `Common errors to avoid: confusing a definition with an example; skipping intermediate reasoning; using a formula or process without checking its conditions; and leaving out units, labels, or evidence where they are required. After solving a task, explain why the method works and check whether the result is reasonable.`
+        ]},
+        { heading: 'Summary and self-check', body: [
+          `Remember the central focus: ${t.name}. You should be able to define the key terms, explain the main idea in a short paragraph, work through a relevant example, and describe one real-life or cross-topic application.`,
+          `Revision checklist: Can you explain the topic without copying the textbook? Can you show each step in an example? Can you identify a likely mistake and correct it? Practise retrieval from memory, then review any part you could not explain clearly.`
+        ]}
+      ];
+      const lesson = {
+        objectives: [
+          `Define and explain the key ideas in ${t.name}.`,
+          `Describe the main steps, relationships, or principles used in ${t.name}.`,
+          `Apply the topic to a worked example and check the reasoning.`,
+          `Summarise the topic and answer practice questions independently.`
+        ],
+        sections,
+        example: { title: `Worked example approach: ${t.name}`, steps: [
+          `Read the task and identify which part of “${t.name}” it tests.`,
+          `Write the relevant definition, principle, rule, or process before starting.`,
+          appliedExample,
+          `Check each step, state the conclusion clearly, and explain why the answer is reasonable.`
+        ]},
+        key: `${t.name}: understand the key terms, explain the underlying principle, apply it step by step, and check the result.`
+      };
+      await client.query(
+        `INSERT INTO lessons (topic_id, objectives, sections, example, key_concept) VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (topic_id) DO NOTHING`,
+        [t.id, JSON.stringify(lesson.objectives), JSON.stringify(lesson.sections), JSON.stringify(lesson.example), lesson.key]
+      );
+      const qs = [
+        { d:'Easy', q:`Which is the best first step when studying ${t.name}?`, o:['Memorise an answer without understanding','Define the key terms and identify the main idea','Skip examples and practise only the hardest task','Ignore the topic description'], a:1, e:'Start by defining the terms and identifying the central idea; this gives later explanations and practice a clear foundation.' },
+        { d:'Medium', q:`After working through an example in ${t.name}, what is the best way to check understanding?`, o:['Copy the example exactly','Read only the final answer','Solve a similar problem independently and explain each step','Assume one correct answer means every case is identical'], a:2, e:'Independent practice and explaining the reasoning tests whether the method is understood and can transfer to a new case.' },
+        { d:'Hard', q:`A solution involving ${t.name} gives an unexpected result. What should you do first?`, o:['Change the answer until it looks familiar','Check assumptions, definitions, and each step of the reasoning','Ignore units or evidence','Repeat the same steps without checking them'], a:1, e:'Review the assumptions and reasoning step by step; also check calculations, units, labels, and whether the method applies.' }
+      ];
+      for (const q of qs) {
+        await client.query(
+          `INSERT INTO questions (topic_id, difficulty, prompt, options, correct_index, explanation)
+           VALUES ($1,$2,$3,$4,$5,$6)
+           ON CONFLICT (topic_id, prompt) DO NOTHING`,
+          [t.id, q.d, q.q, JSON.stringify(q.o), q.a, q.e]
+        );
+        questions++;
+      }
+      lessons++;
+    }
+
     await client.query('COMMIT');
     console.log(`Seed complete: ${SUBJECTS.length} subjects, ${skeletonTopics} textbook topics, ${lessons} written lessons, ${questions} practice questions.`);
   } catch (err) {
