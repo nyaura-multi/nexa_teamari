@@ -8,7 +8,7 @@ const DEFAULT_STUDY_PLAN = [
   'Read your next lesson',
   'Practice 5 questions on a topic you studied',
   'Review the questions you got wrong',
-  'Ask the AI Study Coach about one thing you found hard',
+  'Ask the Study Coach about one thing you found hard',
 ];
 
 function initials(name) {
@@ -52,7 +52,7 @@ router.post('/signup', async (req, res) => {
     }
     await client.query(
       `INSERT INTO chat_messages (user_id, role, text) VALUES ($1,'bot',$2)`,
-      [user.id, `Hi ${user.name.split(' ')[0]}! I'm your AI Study Coach. Open any lesson and tap "Ask AI" and I'll help with that topic, or ask me a question below.`]
+      [user.id, `Hi ${user.name.split(' ')[0]}! I'm your Study Coach. Open a lesson and tap "Ask Coach" for topic-based help, or ask me a question below.`]
     );
 
     await client.query('COMMIT');
@@ -100,3 +100,4 @@ router.get('/me', async (req, res) => {
 });
 
 module.exports = router;
+

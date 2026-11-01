@@ -53,16 +53,19 @@ router.get('/lessons/:topicId', requireAuth, async (req, res) => {
       `SELECT t.id, t.name, t.section_no, t.unit_no, t.unit_title, t.grade,
               s.id AS subject_id, s.name AS subject_name,
               l.objectives, l.sections, l.example, l.key_concept,
+              COALESCE(utp.progress, 0)::int AS progress,
               (SELECT COUNT(*) FROM questions q WHERE q.topic_id = t.id)::int AS question_count
        FROM topics t JOIN subjects s ON s.id = t.subject_id
-       LEFT JOIN lessons l ON l.topic_id = t.id WHERE t.id = $1`,
-      [req.params.topicId]
+       LEFT JOIN lessons l ON l.topic_id = t.id
+       LEFT JOIN user_topic_progress utp ON utp.topic_id = t.id AND utp.user_id = $2
+       WHERE t.id = $1`,
+      [req.params.topicId, req.session.userId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Topic not found.' });
     const r = rows[0];
     res.json({
       topic: { id: r.id, name: r.name, section_no: r.section_no, unit_no: r.unit_no, unit_title: r.unit_title, grade: r.grade,
-               subject_id: r.subject_id, subject_name: r.subject_name, question_count: r.question_count },
+               subject_id: r.subject_id, subject_name: r.subject_name, progress: r.progress, question_count: r.question_count },
       lesson: r.objectives ? { objectives: r.objectives, sections: r.sections, example: r.example, key_concept: r.key_concept } : null,
     });
   } catch (err) {
@@ -71,7 +74,7 @@ router.get('/lessons/:topicId', requireAuth, async (req, res) => {
   }
 });
 
-// Opening a lesson counts as reading it: topic progress rises to at least 40%.
+// Students mark a lesson as read only after studying it; page views do not change progress.
 router.post('/topics/:topicId/lesson-read', requireAuth, async (req, res) => {
   try {
     const { rows: has } = await pool.query('SELECT 1 FROM lessons WHERE topic_id=$1', [req.params.topicId]);
@@ -91,3 +94,4 @@ router.post('/topics/:topicId/lesson-read', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+

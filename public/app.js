@@ -32,8 +32,8 @@ const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 /* ======================================================================
    State
    ====================================================================== */
-const Data = { user:null, dashboard:null, subjects:null, subjectDetail:{}, lesson:null, progress:null, chat:null, coachTopic:null };
-const freshPractice = () => ({ attemptId:null, questions:[], idx:0, selected:null, revealed:false, feedback:null, correctCount:0, startTime:null, lastResult:null });
+const Data = { user:null, dashboard:null, subjects:null, subjectDetail:{}, lesson:null, progress:null, chat:null, coachTopic:null, coachMode:'lesson-helper' };
+const freshPractice = () => ({ attemptId:null, questions:[], idx:0, selected:null, revealed:false, feedback:null, correctCount:0, startTime:null, lastResult:null, countNotice:'' });
 const State = {
   practice: freshPractice(),
   setup: { subjectId:null, topics:[] },
@@ -123,7 +123,6 @@ async function loadForRoute(route, params){
   if(route.startsWith('lesson/')){
     const id = route.split('/')[1];
     Data.lesson = await api(`/lessons/${id}`);
-    if(Data.lesson.lesson) api(`/topics/${id}/lesson-read`, {method:'POST'}).catch(()=>{});
   }
   if(route==='practice' && !State.practice.attemptId){
     const subjects = Data.subjects;
@@ -137,7 +136,8 @@ async function loadForRoute(route, params){
   }
   if(route==='progress') Data.progress = await api('/progress');
   if(route==='coach'){
-    Data.chat = (await api('/chat')).messages;
+    const chat = await api('/chat');
+    Data.chat = chat.messages; Data.coachMode = chat.coachMode || 'lesson-helper';
     const t = params.get('topic');
     Data.coachTopic = t ? (({topic}) => topic)(await api(`/lessons/${t}`)) : null;
   }
@@ -152,7 +152,7 @@ const NAV_ITEMS = [
   {key:'practice', label:'Practice', icon:'target', href:'#/practice'},
   {key:'exam', label:'Mock Exams', icon:'flag', href:'#/exam'},
   {key:'progress', label:'Progress', icon:'chart', href:'#/progress'},
-  {key:'coach', label:'AI Coach', icon:'brain', href:'#/coach'},
+  {key:'coach', label:'Study Coach', icon:'brain', href:'#/coach'},
 ];
 const sidebarHtml = (activeKey) => `
   <aside class="sidebar">
@@ -366,7 +366,7 @@ function pageLesson(){
       <p class="small muted" style="margin-bottom:18px;">This section is part of your Grade ${topic.grade} ${esc(topic.subject_name)} textbook, but its lesson and practice questions haven\u2019t been added yet. Other sections in this subject may already be available.</p>
       <div class="flex gap12" style="flex-wrap:wrap;">
         <a href="#/subject/${topic.subject_id}" class="btn btn-primary">Back to topics</a>
-        <a href="#/coach?topic=${topic.id}" class="btn btn-ghost">${icon('brain',17)} Ask AI</a>
+        <a href="#/coach?topic=${topic.id}" class="btn btn-ghost">${icon('brain',17)} Ask Coach</a>
       </div>
     </div>`;
   }
@@ -398,7 +398,8 @@ function pageLesson(){
       </div>
       <div class="flex gap12" style="flex-wrap:wrap;">
         ${topic.question_count>0 ? `<a href="#/practice?subject=${topic.subject_id}&topic=${topic.id}" class="btn btn-primary">Practice this topic</a>` : ''}
-        <a href="#/coach?topic=${topic.id}" class="btn btn-ghost">${icon('brain',17)} Ask AI</a>
+        <a href="#/coach?topic=${topic.id}" class="btn btn-ghost">${icon('brain',17)} Ask Coach</a>
+        ${topic.progress >= 40 ? `<span class="chip chip-neutral" aria-live="polite">Marked as read</span>` : `<button class="btn btn-ghost" data-mark-lesson-read>Mark as read</button>`}
       </div>
     </div>
   </div>`;
@@ -415,6 +416,7 @@ function pagePractice(){
   return `
   <div class="page-title-row"><div><h1>Practice</h1><div class="sub">${esc(item.topic_name)} \u00b7 ${esc(item.difficulty)}</div></div>
     <button class="btn btn-ghost btn-sm" data-exit-practice>Exit</button></div>
+  ${P.countNotice ? `<p class="small muted" role="status" style="margin-bottom:12px;">${esc(P.countNotice)}</p>` : ''}
   <div class="q-progress-row">
     <span class="small muted" style="flex-shrink:0;font-weight:600;">Question ${P.idx+1} of ${total}</span>
     <div class="pbar"><span style="width:${((P.idx+1)/total)*100}%;"></span></div>
@@ -434,6 +436,10 @@ function practiceSetup(){
   if(!subjects.length) return `<div class="page-title-row"><div><h1>Practice</h1></div></div><div class="card card-pad muted">No subjects are set up for Grade ${Data.user.grade} yet.</div>`;
   const topics = State.setup.topics.filter(t=>t.question_count>0);
   const ready = topics.length>0;
+  const selectedTopic = topics.find(t=>String(t.id)===String(State.setup.topicId));
+  const available = selectedTopic ? Number(selectedTopic.question_count) : topics.reduce((sum,t)=>sum+Number(t.question_count||0),0);
+  const choices = practiceCountChoices(available);
+  const initialCount = choices.includes(8) ? 8 : (choices.at(-1) || 0);
   const lbl = t => `<label class="tiny muted" style="display:block;margin-bottom:6px;font-weight:600;">${t}</label>`;
   return `
   <div class="page-title-row"><div><h1>Practice</h1><div class="sub">Set up a focused practice session.</div></div></div>
@@ -442,11 +448,18 @@ function practiceSetup(){
       <div>${lbl('SUBJECT')}<select class="select-pill" id="practice-subject" style="width:100%;">${subjects.map(s=>`<option value="${s.id}" ${s.id===State.setup.subjectId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
       <div>${lbl('TOPIC')}<select class="select-pill" id="practice-topic" style="width:100%;"><option value="">All topics</option>${topics.map(t=>`<option value="${t.id}" ${String(t.id)===String(State.setup.topicId)?'selected':''}>${esc(t.section_no)} ${esc(t.name)}</option>`).join('')}</select></div>
       <div>${lbl('DIFFICULTY')}<select class="select-pill" id="practice-difficulty" style="width:100%;"><option>Mixed</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
-      <div>${lbl('NUMBER OF QUESTIONS')}<select class="select-pill" id="practice-count" style="width:100%;"><option>5</option><option selected>8</option><option>10</option><option>15</option></select></div>
+      <div>${lbl(`QUESTION BANK SIZE · ${available}`)}<select class="select-pill" id="practice-count" style="width:100%;">${choices.map(n=>`<option value="${n}" ${n===initialCount?'selected':''}>${n}${n===available?' · all available':''}</option>`).join('')}</select></div>
     </div>
     ${ready ? '' : `<p class="small muted" style="margin-bottom:14px;">Practice questions for this subject aren\u2019t ready for Grade ${Data.user.grade} yet. Try another subject.</p>`}
     <button class="btn btn-primary btn-block" data-start-practice ${ready?'':'disabled'}>Start practice</button>
   </div>`;
+}
+function practiceCountChoices(available){
+  const max = Math.min(30, Math.max(0, Number(available)||0));
+  if(!max) return [0];
+  const choices = [5,8,10,15,20,25,30].filter(n=>n<=max);
+  if(!choices.includes(max)) choices.push(max);
+  return choices;
 }
 function optionButton(opt,i,P){
   let cls='option-btn';
@@ -470,6 +483,7 @@ function pageResults(){
   if(!r) return `<div class="empty-state">No results yet. <a href="#/practice" style="color:var(--indigo);font-weight:600;">Start a practice session</a>.</div>`;
   const secs = r.durationSec || 0;
   const weak = (r.topicBreakdown||[]).filter(t=>t.accuracy<60);
+  const reviewQuestions = r.reviewQuestions || [];
   return `
   <div class="page-title-row"><div><h1>${r.kind==='exam'?'Exam Complete':'Practice Complete'}</h1><div class="sub">${r.total} question${r.total===1?'':'s'}</div></div></div>
   <div class="card card-pad score-hero" style="max-width:420px;margin:0 auto 28px;">${ring(r.accuracy,132,11)}<div class="muted small" style="margin-top:14px;">Accuracy</div></div>
@@ -479,12 +493,25 @@ function pageResults(){
     ${statCard('target','Accuracy', r.accuracy+'%','var(--indigo)','var(--indigo-tint)')}
     ${statCard('clock','Time spent', `${Math.floor(secs/60)}m ${secs%60}s`,'var(--amber)','var(--amber-tint)')}
   </div>
+  ${reviewQuestions.length ? `<section class="card card-pad" style="margin-bottom:22px;">
+    <div class="section-label">Review the questions you missed</div>
+    <p class="small muted" style="margin-bottom:14px;">Read each solution, then revisit the lesson or try another set on that topic.</p>
+    <div class="grid" style="gap:10px;">
+      ${reviewQuestions.map((q,i)=>`<details class="card" style="padding:14px 16px;">
+        <summary style="cursor:pointer;font-weight:600;line-height:1.45;">${i+1}. ${esc(q.prompt)}</summary>
+        <div class="small" style="margin-top:12px;"><div><strong>Your answer:</strong> ${q.selectedIndex === null || q.selectedIndex === undefined ? 'Not answered' : esc(q.options?.[Number(q.selectedIndex)] ?? '')}</div>
+        <div><strong>Correct answer:</strong> ${esc(q.options?.[Number(q.correctIndex)] ?? '')}</div>
+        <p class="muted" style="margin:8px 0 10px;">${esc(q.explanation)}</p>
+        <div class="flex gap8" style="flex-wrap:wrap;"><a class="btn btn-ghost btn-sm" href="#/lesson/${q.topicId}">Review ${esc(q.section)} lesson</a><a class="btn btn-soft btn-sm" href="#/practice?subject=${encodeURIComponent(q.subjectId)}&topic=${encodeURIComponent(q.topicId)}">Practice ${esc(q.topic)}</a></div></div>
+      </details>`).join('')}
+    </div>
+  </section>` : ''}
   <div class="grid g2" style="align-items:start;">
     <div class="card card-pad">
       <div class="section-label">Topic performance</div>
       ${(r.topicBreakdown||[]).map(t=>perfRow(t.topic,t.accuracy)).join('') || '<p class="small muted">No breakdown available.</p>'}
       <div class="section-label" style="margin-top:22px;">Areas to Improve</div>
-      <p class="small muted">${weak.length ? weak.map(t=>esc(t.topic)).join(', ')+' \u2014 review these lessons and try another practice set.' : 'Nothing flagged in this session. Nice work.'}</p>
+      <p class="small muted">${weak.length ? weak.map(t=>esc(t.topic)).join(', ')+' \u2014 open a lesson and practise those topics again.' : 'Nothing flagged in this session. Nice work.'}</p>
     </div>
     <div class="card card-pad">
       <div class="section-label">Recommended Next Step</div>
@@ -523,7 +550,7 @@ function pageExamIntro(){
   const plan = examPlan(subject);
   const past = (Data.progress?.recentTests||[]).filter(t=>t.kind==='exam').slice(0,3);
   return `
-  <div class="page-title-row"><div><h1>Grade ${Data.user.grade} ${esc(subject.name)} Mock Exam</h1><div class="sub">Timed, exam-style practice under real conditions.</div></div>
+  <div class="page-title-row"><div><h1>Grade ${Data.user.grade} ${esc(subject.name)} Mock Exam</h1><div class="sub">Timed practice with broad topic coverage. It is not calibrated to the official exam blueprint.</div></div>
     <select class="select-pill" id="exam-subject" aria-label="Subject">${subjects.map(s=>`<option value="${s.id}" ${s.id===subject.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
   <div class="grid g2" style="align-items:start;">
     <div class="card card-pad">
@@ -633,13 +660,13 @@ function shellCoach(){
     <div class="main-col" style="padding-bottom:0;">
       <div class="topbar"><div class="topbar-row">
         <a href="#/dashboard" class="brand hide-desktop"><span class="mark">N</span>NEXA</a>
-        <div><div style="font-weight:600;font-size:14.5px;">AI Study Coach</div><div class="tiny muted">Understand difficult topics, step by step.</div></div>
+        <div><div style="font-weight:600;font-size:14.5px;">Study Coach</div><div class="tiny muted">${Data.coachMode==='ai'?'AI help grounded in the lesson you are studying.':'Lesson-based help with examples and practice; AI service is not enabled.'}</div></div>
         <div style="width:32px;"></div>
       </div></div>
       <div class="coach-shell">
         ${t ? `<div class="coach-topic">${icon('book',15)} Studying: <strong>${esc(t.name)}</strong> <a href="#/coach" style="margin-left:auto;color:var(--indigo);font-weight:600;">Clear</a></div>` : ''}
         <div class="chat-scroll" id="chat-scroll">${Data.chat.map(chatBubble).join('')}</div>
-        <div class="suggested-row">${SUGGESTED_ACTIONS.map(a=>`<button class="suggest-chip" data-suggest="${encodeURIComponent(a.prompt)}">${a.label}</button>`).join('')}</div>
+        <div class="suggested-row">${SUGGESTED_ACTIONS.filter(a=>Data.coachMode==='ai'||!a.prompt.toLowerCase().includes('amharic')).map(a=>`<button class="suggest-chip" data-suggest="${encodeURIComponent(a.prompt)}">${a.label}</button>`).join('')}</div>
         <div class="chat-input-row">
           <input type="text" id="chat-input" placeholder="${t ? 'Ask about '+esc(t.name)+'\u2026' : 'Ask a question, or open a lesson and tap Ask AI\u2026'}" />
           <button class="btn btn-primary btn-icon" data-send-chat aria-label="Send">${icon('send',17)}</button>
@@ -664,6 +691,15 @@ function attachHandlers(route){
 
   on('[data-logout]','click', async (el,e)=>{ e.preventDefault(); await api('/auth/logout',{method:'POST'}); location.href='login.html'; });
 
+  on('[data-mark-lesson-read]','click', async el=>{
+    el.disabled = true;
+    try{
+      await api(`/topics/${Data.lesson.topic.id}/lesson-read`, {method:'POST'});
+      Data.lesson.topic.progress = Math.max(40, Number(Data.lesson.topic.progress)||0);
+      render();
+    }catch(e){ el.disabled = false; alert(e.message); }
+  });
+
   on('[data-select-grade]','click', async el=>{
     Data.user.grade = parseInt(el.dataset.selectGrade,10);
     await api('/user/grade',{method:'PATCH',body:{grade:Data.user.grade}});
@@ -686,6 +722,18 @@ function attachHandlers(route){
 
   // ---- Practice
   on('#practice-subject','change', el=>{ State.practice = freshPractice(); go(`#/practice?subject=${el.value}`); });
+  on('#practice-topic','change', el=>{
+    State.setup.topicId = el.value;
+    const topics = State.setup.topics.filter(t=>t.question_count>0 && (!el.value || String(t.id)===String(el.value)));
+    const available = topics.reduce((sum,t)=>sum+Number(t.question_count||0),0);
+    const countSelect = app.querySelector('#practice-count');
+    const oldCount = Number(countSelect.value);
+    const choices = practiceCountChoices(available);
+    countSelect.innerHTML = choices.map(n=>`<option value="${n}">${n}${n===available?' · all available':''}</option>`).join('');
+    countSelect.value = String(choices.includes(oldCount) ? oldCount : (choices.includes(8) ? 8 : choices.at(-1)));
+    const countLabel = countSelect.closest('div').querySelector('label');
+    if(countLabel) countLabel.textContent = `QUESTION BANK SIZE · ${available}`;
+  });
   on('[data-start-practice]','click', async ()=>{
     const subjectId = app.querySelector('#practice-subject').value;
     const topicId = app.querySelector('#practice-topic').value;
@@ -693,7 +741,8 @@ function attachHandlers(route){
     const count = app.querySelector('#practice-count').value;
     try{
       const { attemptId, questions } = await api('/practice/start',{method:'POST',body:{subjectId, topicId: topicId||null, difficulty, count}});
-      State.practice = { ...freshPractice(), attemptId, questions, startTime:Date.now() };
+      State.practice = { ...freshPractice(), attemptId, questions, startTime:Date.now(),
+        countNotice: questions.length < Number(count) ? `Only ${questions.length} question${questions.length===1?' is':'s are'} currently available for these filters; this session includes all of them.` : '' };
       render();
     }catch(e){ alert(e.message); }
   });
@@ -797,3 +846,4 @@ function startExamTimer(){
   }, 1000);
 }
 function stopExamTimer(){ if(State.exam && State.exam.timerId){ clearInterval(State.exam.timerId); State.exam.timerId=null; } }
+

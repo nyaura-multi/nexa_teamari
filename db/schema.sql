@@ -109,6 +109,16 @@ CREATE TABLE IF NOT EXISTS exam_answers (
   UNIQUE (attempt_id, question_id)
 );
 
+-- Persist the exact question set so exams can be reviewed and submissions
+-- cannot score questions that were not presented in that attempt.
+CREATE TABLE IF NOT EXISTS exam_attempt_questions (
+  attempt_id  INT NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+  question_id INT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  question_order INT NOT NULL,
+  PRIMARY KEY (attempt_id, question_id),
+  UNIQUE (attempt_id, question_order)
+);
+
 CREATE TABLE IF NOT EXISTS study_plan_items (
   id         SERIAL PRIMARY KEY,
   user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

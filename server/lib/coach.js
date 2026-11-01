@@ -47,12 +47,12 @@ async function callClaude({ prompt, topic, grade, history }) {
   return data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
 }
 
-function fallback(prompt, topic, questions) {
+function fallback(prompt, topic, questions, history = []) {
   const p = prompt.toLowerCase();
   if (!topic || !topic.lesson) {
     return topic
-      ? `The lesson for "${topic.name}" isn't written yet, so I can't walk you through it. Try a topic that has a lesson, then tap "Ask AI" from there.`
-      : 'Open a lesson and tap "Ask AI" so I know which topic you\'re on. I can then explain it simply, give an example, or quiz you.';
+      ? `The lesson for "${topic.name}" isn't written yet, so I can't walk you through it. Try a topic that has a lesson, then tap "Ask Coach" from there.`
+      : 'Open a lesson and tap "Ask Coach" so I know which topic you\'re on. I can then explain it simply, give an example, or quiz you.';
   }
   const L = topic.lesson;
   const first = L.sections[0].body[0];
@@ -62,11 +62,21 @@ function fallback(prompt, topic, questions) {
   if (p.includes('example')) {
     return `${L.example.title}\n\n` + L.example.steps.map((s, i) => `${i + 1}. ${s}`).join('\n');
   }
+  const answer = p.trim().match(/^(?:(?:my answer|answer|i choose|i think)\s*(?:is)?\s*)?([a-d])(?:[\s.,!]|$)/i);
+  if (answer) {
+    const lastQuiz = [...history].reverse().find(m => m.role === 'bot' && m.text.startsWith('Quick quiz:'));
+    const asked = lastQuiz && questions.find(q => lastQuiz.text.includes(q.prompt));
+    if (asked) {
+      const picked = answer[1].toUpperCase().charCodeAt(0) - 65;
+      if (picked === asked.correct_index) return `Correct — ${answer[1].toUpperCase()}. ${asked.explanation}\n\nWould you like another question on ${topic.name}?`;
+      return `Not quite. The correct answer is ${String.fromCharCode(65 + asked.correct_index)}. ${asked.explanation}\n\nTry explaining which step led you to your choice, or ask for another example.`;
+    }
+  }
   if (p.includes('quiz') || p.includes('similar question') || p.includes('question')) {
     if (!questions.length) return 'There are no practice questions for this topic yet. Try re-reading the key concept: ' + L.key_concept;
     const q = questions[Math.floor(Math.random() * questions.length)];
     const opts = q.options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join('\n');
-    return `${q.prompt}\n\n${opts}\n\nThink it through first. The answer is ${String.fromCharCode(65 + q.correct_index)}: ${q.explanation}`;
+    return `Quick quiz: ${q.prompt}\n\n${opts}\n\nReply with A, B, C, or D. I’ll check your answer and explain the reasoning.`;
   }
   if (p.includes('simply') || p.includes('simple') || p.includes('explain')) {
     return `In short: ${L.key_concept}\n\nA bit more detail: ${first}`;
@@ -79,7 +89,8 @@ async function generateReply(args) {
     try { return await callClaude(args); }
     catch (err) { console.error('Coach API error, using fallback:', err.message); }
   }
-  return fallback(args.prompt, args.topic, args.questions || []);
+  return fallback(args.prompt, args.topic, args.questions || [], args.history || []);
 }
 
 module.exports = { generateReply };
+
