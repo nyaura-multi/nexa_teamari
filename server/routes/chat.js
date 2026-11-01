@@ -10,7 +10,7 @@ router.get('/chat', requireAuth, async (req, res) => {
     const { rows } = await pool.query(
       'SELECT id, role, text, created_at FROM chat_messages WHERE user_id=$1 ORDER BY created_at ASC, id ASC', [req.session.userId]
     );
-    res.json({ messages: rows });
+    res.json({ messages: rows, coachMode: process.env.ANTHROPIC_API_KEY ? 'ai' : 'lesson-helper' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load chat history.' });
@@ -55,3 +55,4 @@ router.post('/chat', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+

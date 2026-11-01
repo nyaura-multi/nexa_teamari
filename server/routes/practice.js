@@ -100,10 +100,24 @@ router.post('/practice/:attemptId/complete', requireAuth, async (req, res) => {
       );
     }
 
+    const { rows: reviewRows } = await pool.query(
+      `SELECT q.prompt, q.options, q.correct_index, pa.selected_index,
+              q.explanation, t.id AS topic_id, t.name AS topic, t.section_no, s.id AS subject_id
+       FROM practice_answers pa
+       JOIN questions q ON q.id = pa.question_id
+       JOIN topics t ON t.id = q.topic_id
+       JOIN subjects s ON s.id = t.subject_id
+       WHERE pa.attempt_id = $1 AND pa.is_correct = false
+       ORDER BY t.sort_order, q.id`,
+      [attemptId]
+    );
     res.json({
       total: attempt.total, correct: attempt.correct,
       accuracy: attempt.total ? Math.round((attempt.correct / attempt.total) * 100) : 0,
-      topicBreakdown: breakdown.map(b => ({ topic: b.topic, correct: b.correct, total: b.total, accuracy: Math.round((b.correct / b.total) * 100) })),
+      topicBreakdown: breakdown.map(b => ({ topicId: b.topic_id, topic: b.topic, correct: b.correct, total: b.total, accuracy: Math.round((b.correct / b.total) * 100) })),
+      reviewQuestions: reviewRows.map(q => ({ prompt: q.prompt, options: q.options, correctIndex: q.correct_index,
+        selectedIndex: q.selected_index, explanation: q.explanation, topicId: q.topic_id, topic: q.topic,
+        section: q.section_no, subjectId: q.subject_id })),
     });
   } catch (err) {
     console.error(err);
@@ -112,3 +126,4 @@ router.post('/practice/:attemptId/complete', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
+
