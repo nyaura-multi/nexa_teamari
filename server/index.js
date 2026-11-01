@@ -14,17 +14,28 @@ const progressRoutes = require('./routes/progress');
 const chatRoutes = require('./routes/chat');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(express.json());
+
+// Netlify rewrites /api/* to this function and strips the /api prefix.
+// Restore it before Express route matching; direct /api requests remain unchanged.
+app.use((req, res, next) => {
+  if (req.path !== '/api' && !req.path.startsWith('/api/')) {
+    req.url = '/api' + req.url;
+  }
+  next();
+});
 
 app.use(session({
   store: new pgSession({ pool, createTableIfMissing: true }),
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  secret: process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('SESSION_SECRET must be set in production.'); })() : 'dev-secret-change-me'),
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     httpOnly: true,
     sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
   },
 }));
 
@@ -45,7 +56,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`NEXA server running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`NEXA server running at http://localhost:${PORT}`));
+}
+module.exports = app;

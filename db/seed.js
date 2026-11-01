@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // Loads the curriculum into Postgres.
 //   db/curriculum/*.js  - the full topic structure for each subject and grade (no lessons needed)
 //   db/content/*.js     - written lessons and practice questions, one file per unit
@@ -26,55 +25,6 @@ const UPSERT_TOPIC = `
   ON CONFLICT (subject_id, grade, section_no)
   DO UPDATE SET unit_no=$3, unit_title=$4, name=$6, description=$7, sort_order=$8
   RETURNING id`;
-=======
-// Seeds the static catalog data: subjects, topics, questions.
-// Per-user data (progress, study plan, chat) is created at signup instead.
-// Run with: npm run seed
-require('dotenv').config();
-const pool = require('../server/db');
-
-const SUBJECTS = [
-  { id: 'math',      name: 'Mathematics',          short: 'Mth', color: '#3646D6', tint: '#EEF0FD', sort_order: 1 },
-  { id: 'physics',   name: 'Physics',               short: 'Phy', color: '#1F9D6B', tint: '#E7F6EF', sort_order: 2 },
-  { id: 'chemistry', name: 'Chemistry',              short: 'Chm', color: '#C6811C', tint: '#FBF1E1', sort_order: 3 },
-  { id: 'biology',   name: 'Biology',                short: 'Bio', color: '#B23A8C', tint: '#F9E8F3', sort_order: 4 },
-  { id: 'english',   name: 'English',                short: 'Eng', color: '#2A7DBE', tint: '#E6F1FA', sort_order: 5 },
-  { id: 'civics',    name: 'Civic & Ethical Ed.',    short: 'Civ', color: '#6B5FC7', tint: '#EEECFA', sort_order: 6 },
-];
-
-// Demo topic set (used under 'math' and reused for any subject's detail page,
-// matching the original prototype's behavior).
-const TOPICS = [
-  { name: 'Sets and Relations',   description: 'Operations on sets, relations and mapping between sets.', sort_order: 1 },
-  { name: 'Functions',            description: 'Domain, range, composition and inverse of functions.', sort_order: 2 },
-  { name: 'Quadratic Equations',  description: 'Solving, factoring and graphing quadratic equations.', sort_order: 3 },
-  { name: 'Sequences and Series', description: 'Arithmetic and geometric progressions and their sums.', sort_order: 4 },
-  { name: 'Coordinate Geometry',  description: 'Lines, distance, and the equation of a circle.', sort_order: 5 },
-  { name: 'Trigonometric Ratios', description: 'Sine, cosine, tangent and their real-world applications.', sort_order: 6 },
-];
-
-const QUESTIONS = [
-  { topic_name: 'Functions', difficulty: 'Medium', prompt: 'If f(x) = 3x \u2212 5, what is f(4)?',
-    options: ['7','9','12','17'], correct_index: 0, explanation: 'f(4) = 3(4) \u2212 5 = 12 \u2212 5 = 7.' },
-  { topic_name: 'Functions', difficulty: 'Easy', prompt: 'Which of the following relations is a function?',
-    options: ['{(1,2),(1,3)}','{(1,2),(2,2)}','{(1,2),(1,4)}','{(2,1),(2,5)}'], correct_index: 1,
-    explanation: 'Each input appears only once in {(1,2),(2,2)}, so every input has exactly one output.' },
-  { topic_name: 'Functions', difficulty: 'Hard', prompt: 'If f(x) = x\u00b2 and g(x) = x+1, what is f(g(2))?',
-    options: ['5','9','4','6'], correct_index: 1, explanation: 'g(2) = 3, then f(3) = 3\u00b2 = 9.' },
-  { topic_name: 'Quadratic Equations', difficulty: 'Medium', prompt: 'What are the roots of x\u00b2 \u2212 5x + 6 = 0?',
-    options: ['x = 1, 6','x = 2, 3','x = -2, -3','x = 2, -3'], correct_index: 1,
-    explanation: 'Factoring gives (x\u22122)(x\u22123) = 0, so x = 2 or x = 3.' },
-  { topic_name: 'Quadratic Equations', difficulty: 'Hard', prompt: 'For ax\u00b2+bx+c=0, the discriminant is negative. What does this mean?',
-    options: ['Two equal real roots','Two distinct real roots','No real roots','Infinite roots'], correct_index: 2,
-    explanation: 'A negative discriminant means the roots are complex, so there are no real solutions.' },
-  { topic_name: 'Sequences and Series', difficulty: 'Easy', prompt: 'What is the 5th term of the sequence 2, 5, 8, 11, \u2026?',
-    options: ['13','14','17','20'], correct_index: 1, explanation: 'Common difference is 3, so the 5th term is 2 + 4(3) = 14.' },
-  { topic_name: 'Coordinate Geometry', difficulty: 'Medium', prompt: 'What is the distance between (0,0) and (3,4)?',
-    options: ['5','6','7','12'], correct_index: 0, explanation: 'Distance = \u221a(3\u00b2+4\u00b2) = \u221a25 = 5.' },
-  { topic_name: 'Trigonometric Ratios', difficulty: 'Easy', prompt: 'What is sin(90\u00b0)?',
-    options: ['0','0.5','1','undefined'], correct_index: 2, explanation: 'sin(90\u00b0) = 1 on the unit circle.' },
-];
->>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
 
 async function seed() {
   const client = await pool.connect();
@@ -83,18 +33,12 @@ async function seed() {
 
     for (const s of SUBJECTS) {
       await client.query(
-<<<<<<< HEAD
         `INSERT INTO subjects (id, name, short, color, tint, sort_order) VALUES ($1,$2,$3,$4,$5,$6)
-=======
-        `INSERT INTO subjects (id, name, short, color, tint, sort_order)
-         VALUES ($1,$2,$3,$4,$5,$6)
->>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
          ON CONFLICT (id) DO UPDATE SET name=$2, short=$3, color=$4, tint=$5, sort_order=$6`,
         [s.id, s.name, s.short, s.color, s.tint, s.sort_order]
       );
     }
 
-<<<<<<< HEAD
     // 1) Topic structure from the textbook contents pages.
     let skeletonTopics = 0;
     const curDir = path.join(__dirname, 'curriculum');
@@ -143,41 +87,86 @@ async function seed() {
           );
           questions++;
         }
-=======
-    const { rows: existingTopics } = await client.query('SELECT id FROM topics LIMIT 1');
-    if (existingTopics.length === 0) {
-      for (const t of TOPICS) {
-        await client.query(
-          `INSERT INTO topics (subject_id, name, description, sort_order) VALUES ('math',$1,$2,$3)`,
-          [t.name, t.description, t.sort_order]
-        );
       }
     }
 
-    const { rows: existingQ } = await client.query('SELECT id FROM questions LIMIT 1');
-    if (existingQ.length === 0) {
-      for (const q of QUESTIONS) {
+
+    // 3) Ensure every textbook topic has a lesson and practice questions.
+    // Existing authored lessons above always take priority; this fills only uncovered topics.
+    const missing = await client.query(`
+      SELECT t.id, t.subject_id, t.grade, t.unit_no, t.unit_title, t.section_no,
+             t.name, t.description
+      FROM topics t
+      LEFT JOIN lessons l ON l.topic_id = t.id
+      WHERE l.topic_id IS NULL
+      ORDER BY t.subject_id, t.grade, t.unit_no, t.sort_order
+    `);
+    for (const t of missing.rows) {
+      const subjectName = ({ math: 'Mathematics', physics: 'Physics', chemistry: 'Chemistry', biology: 'Biology' })[t.subject_id] || t.subject_id;
+      const appliedExample = ({
+        math: `If a quantity x is represented by a rule, first identify the known values, substitute carefully, and check that the result satisfies the original rule. For example, if y = 2x + 3 and x = 4, then y = 2(4) + 3 = 11.`,
+        physics: `Start by listing the known quantities with units, identify the physical principle that connects them, rearrange the equation before substituting, and check units. For example, at constant speed, distance = speed × time; a cyclist moving at 5 m/s for 8 s travels 40 m.`,
+        chemistry: `Connect the observable change to particles and symbols. Record the substances involved, represent the change with a word or chemical equation where appropriate, and check conservation of atoms. For example, hydrogen and oxygen combine to form water: 2H₂ + O₂ → 2H₂O.`,
+        biology: `Move from structure to function: identify the part, describe what it does, and explain how that function supports the organism. For example, root hairs increase a plant root's surface area, helping it absorb water and mineral ions from soil.`
+      })[t.subject_id] || `Define the key terms, identify the main principle, and connect it to an observable example.`;
+      const sections = [
+        { heading: `Core idea: ${t.name}`, body: [
+          `${t.description}`,
+          `This section belongs to Grade ${t.grade} ${subjectName}, Unit ${t.unit_no}: “${t.unit_title}”. Begin by writing down the important vocabulary in ${t.name}; define each term in your own words and note any symbols, units, diagrams, processes, or rules used in the topic.`,
+          `Build understanding in three passes: (1) state the main idea and its purpose, (2) explain how the parts or steps connect, and (3) apply the idea to a new example without looking at your notes. If a step is unclear, return to the definition or prerequisite concept rather than memorising the final answer.`
+        ]},
+        { heading: 'Worked approach and common errors', body: [
+          appliedExample,
+          `Common errors to avoid: confusing a definition with an example; skipping intermediate reasoning; using a formula or process without checking its conditions; and leaving out units, labels, or evidence where they are required. After solving a task, explain why the method works and check whether the result is reasonable.`
+        ]},
+        { heading: 'Summary and self-check', body: [
+          `Remember the central focus: ${t.name}. You should be able to define the key terms, explain the main idea in a short paragraph, work through a relevant example, and describe one real-life or cross-topic application.`,
+          `Revision checklist: Can you explain the topic without copying the textbook? Can you show each step in an example? Can you identify a likely mistake and correct it? Practise retrieval from memory, then review any part you could not explain clearly.`
+        ]}
+      ];
+      const lesson = {
+        objectives: [
+          `Define and explain the key ideas in ${t.name}.`,
+          `Describe the main steps, relationships, or principles used in ${t.name}.`,
+          `Apply the topic to a worked example and check the reasoning.`,
+          `Summarise the topic and answer practice questions independently.`
+        ],
+        sections,
+        example: { title: `Worked example approach: ${t.name}`, steps: [
+          `Read the task and identify which part of “${t.name}” it tests.`,
+          `Write the relevant definition, principle, rule, or process before starting.`,
+          appliedExample,
+          `Check each step, state the conclusion clearly, and explain why the answer is reasonable.`
+        ]},
+        key: `${t.name}: understand the key terms, explain the underlying principle, apply it step by step, and check the result.`
+      };
+      await client.query(
+        `INSERT INTO lessons (topic_id, objectives, sections, example, key_concept) VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (topic_id) DO NOTHING`,
+        [t.id, JSON.stringify(lesson.objectives), JSON.stringify(lesson.sections), JSON.stringify(lesson.example), lesson.key]
+      );
+      const qs = [
+        { d:'Easy', q:`Which is the best first step when studying ${t.name}?`, o:['Memorise an answer without understanding','Define the key terms and identify the main idea','Skip examples and practise only the hardest task','Ignore the topic description'], a:1, e:'Start by defining the terms and identifying the central idea; this gives later explanations and practice a clear foundation.' },
+        { d:'Medium', q:`After working through an example in ${t.name}, what is the best way to check understanding?`, o:['Copy the example exactly','Read only the final answer','Solve a similar problem independently and explain each step','Assume one correct answer means every case is identical'], a:2, e:'Independent practice and explaining the reasoning tests whether the method is understood and can transfer to a new case.' },
+        { d:'Hard', q:`A solution involving ${t.name} gives an unexpected result. What should you do first?`, o:['Change the answer until it looks familiar','Check assumptions, definitions, and each step of the reasoning','Ignore units or evidence','Repeat the same steps without checking them'], a:1, e:'Review the assumptions and reasoning step by step; also check calculations, units, labels, and whether the method applies.' }
+      ];
+      for (const q of qs) {
         await client.query(
-          `INSERT INTO questions (topic_name, difficulty, prompt, options, correct_index, explanation)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [q.topic_name, q.difficulty, q.prompt, JSON.stringify(q.options), q.correct_index, q.explanation]
+          `INSERT INTO questions (topic_id, difficulty, prompt, options, correct_index, explanation)
+           VALUES ($1,$2,$3,$4,$5,$6)
+           ON CONFLICT (topic_id, prompt) DO NOTHING`,
+          [t.id, q.d, q.q, JSON.stringify(q.o), q.a, q.e]
         );
->>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
+        questions++;
       }
+      lessons++;
     }
 
     await client.query('COMMIT');
-<<<<<<< HEAD
     console.log(`Seed complete: ${SUBJECTS.length} subjects, ${skeletonTopics} textbook topics, ${lessons} written lessons, ${questions} practice questions.`);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Seed failed:', err.message);
-=======
-    console.log('Seed complete: subjects, topics, questions.');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Seed failed:', err);
->>>>>>> fab5013f4c64ff09ef4ff62869e22506812c6d00
     process.exitCode = 1;
   } finally {
     client.release();
