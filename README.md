@@ -5,8 +5,10 @@ Learn. Practice. Understand. Improve.
 
 This is the full-stack version: a real Express API backed by PostgreSQL,
 with signup/login and session auth. The front end is plain HTML/CSS/JS
-(no build step) that talks to the API — nothing runs from mock arrays
-anymore except the lesson reading content (see **Known simplifications** below).
+(no build step) that talks to the API. Grades 9–12 curriculum outlines for the
+core subjects are seeded from local files; written lessons and
+questions are currently available only where authored content files exist (see
+**Current content and rollout limits**).
 
 ## Stack
 
@@ -27,7 +29,7 @@ nexa-fullstack/
     index.js          — Express app entry point
     db.js              — pg connection pool
     middleware/requireAuth.js
-    lib/coach.js       — AI Study Coach reply logic (rule-based for v1)
+    lib/coach.js       — AI Study Coach with a lesson-based fallback
     routes/
       auth.js          — signup / login / logout / me
       dashboard.js      — dashboard stats, study plan toggle, grade update
@@ -77,9 +79,9 @@ psql -d nexa -f db/schema.sql
 npm run seed
 ```
 
-`db/schema.sql` creates all tables. `npm run seed` populates the static
-catalog (6 subjects, the demo topic list, and the question bank) — it's
-separate from user data, which is created automatically when someone signs up.
+`db/schema.sql` creates missing tables for a new database. Existing installations must apply reviewed additive migrations from `db/migrations/` before deploying code that uses them. `npm run seed`
+upserts the current subject catalog, Grade 12 curriculum topics, and authored
+lessons/questions. It does not create or modify student accounts.
 
 ### 5. Run the server
 
@@ -125,31 +127,57 @@ in Postgres:
   history, not hardcoded
 - **AI Study Coach** — chat history persists per user across sessions
 
-## Known simplifications (v1)
+## Current content and rollout limits
 
-- **Lesson content** (`public/app.js` → `LESSON` object) is still static
-  demo content for "Mathematics → Functions" — the brief asked for mock
-  data here, and full curriculum content wasn't in scope. Swapping it for a
-  `lessons` table + `/api/lesson/:topicId` route would follow the same
-  pattern as `subjects.js`.
-- **Subject detail topics** all reuse the same demo topic set (seeded under
-  `subject_id = 'math'`) regardless of which subject you open — matching the
-  original prototype's behavior. Give each subject its own topics by seeding
-  more rows in `db/seed.js` with different `subject_id` values.
-- **AI Study Coach** replies are rule-based (`server/lib/coach.js`), not a
-  real model call, per the brief's "mock data" instruction for v1. It's
-  isolated behind one function so swapping in a real LLM call later doesn't
-  touch the route or the front end.
-- **No marketing landing page** in this version — the app goes straight to
-  login/signup, since the previous static build already covered that page
-  and it doesn't need a backend.
+The curriculum catalog lists Mathematics, Physics, Chemistry, and Biology for
+Grades 9–12. Authored lesson/question modules are available for Grade 12
+Mathematics Units 1–5, Physics Unit 2 (Two-dimensional Motion), Chemistry Unit 1
+(Acid-Base Equilibria), and Biology Unit 3 (Energy Transformation). Other topics
+must remain clearly marked as coming soon; they must not show generic filler as
+if it were curriculum-aligned material.
 
-## Next steps if you keep building this
+The written Mathematics units (1–5) have 12–15 questions per section. The new
+Physics, Chemistry, and Biology units have 8 questions per section, including
+Easy, Medium, and Hard practice. These questions and explanations are newly
+written around the textbook topic outline; textbook passages are not copied.
+Question-count choices are limited to the selected topic bank, and a session
+explains when difficulty filters leave fewer items than requested. After practice or a mock exam, students can review wrong
+and unanswered questions with explanations and direct links to the lesson and
+a targeted retry. This is a broader starter bank, not yet enough repetition for
+mastery or a complete national-exam question bank. Grade 12 coverage is still
+partial outside Mathematics, and Grades 9–11 currently have curriculum outlines
+but no authored lessons/questions. Questions still need review against the
+current Ethiopian Grade 12 curriculum, exam blueprints, and teacher-approved
+solutions before they are treated as official exam preparation. The current
+mock exam samples available questions and is not yet calibrated to the official
+matric blueprint. Existing databases must apply
+`db/migrations/001_exam_attempt_questions.sql` before deploying the saved-exam-review flow.
 
-- Add password reset (email-based token flow)
-- Real lesson content table + admin/teacher content authoring
-- Expand the question bank significantly (8 seed questions is enough to
-  demo the mechanics, not a real curriculum)
-- Rate-limit `/api/auth/login` against brute-force attempts
-- Move `SESSION_SECRET` and DB credentials to a real secrets manager for
-  production deployment
+Lesson page views do not change learner progress. Students can explicitly mark
+a lesson as read after studying it; practice and exam results continue to update
+progress through their own routes.
+
+The Study Coach uses the configured Anthropic API when `ANTHROPIC_API_KEY` is
+available and a limited lesson-grounded fallback otherwise. Do not present the
+fallback as a full AI tutor or as Amharic-capable.
+
+## Database safety
+
+`db/schema.sql` creates missing tables without dropping user data. It is for a
+new database; an existing database from an earlier schema needs a reviewed,
+versioned migration before upgrading. Never use the seed script or schema file
+against a production database until the deployment and data migration have been
+reviewed and backed up.
+
+## Deployment checklist
+
+- Verify the Netlify deployment is built from the intended repository branch and
+  commit. The repository has previously contained unresolved merge markers, so
+  check the deployed commit rather than assuming the live site matches `main`.
+- Configure the API host's PostgreSQL URL, session secret, and optional coach
+  API key in its secret manager. Never commit `.env` files or credentials.
+- Deploy backend/API and static front end together only after confirming their
+  API base URL, cookie/session settings, CORS policy, and database schema match.
+- Expand and review each subject’s lessons and question bank before advertising
+  that subject as ready for exam practice.
+
